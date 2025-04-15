@@ -1,0 +1,29 @@
+name: Notify Slack When PR Merged and Jira Done
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  notify_slack:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract Jira issue key from PR title
+        id: extract
+        run: |
+          echo "📌 Extracting Jira issue key from PR title..."
+          if [[ "${{ github.event.pull_request.title }}" =~ ([A-Z]+-[0-9]+) ]]; then
+            echo "key=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+          else
+            echo "key=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify Slack
+        if: steps.extract.outputs.key != ''
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{
+            \"text\": \"✅ Jira issue *${{ steps.extract.outputs.key }}* đã được chuyển sang *Done* sau khi merge PR: <${{ github.event.pull_request.html_url }}|Xem Pull Request>\"
+          }" \
+          ${{ secrets.SLACK_WEBHOOK_URL }}
